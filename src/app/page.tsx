@@ -16,15 +16,12 @@ export default function Home() {
   const [error, setError] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const isValid =
-    /^0x[0-9a-fA-F]{40}$/.test(address);
-  const isTokenValid =
-    tokenAddress === '' || /^0x[0-9a-fA-F]{40}$/.test(tokenAddress);
+  const isValid = /^0x[0-9a-fA-F]{40}$/.test(address);
+  const isTokenValid = tokenAddress === '' || /^0x[0-9a-fA-F]{40}$/.test(tokenAddress);
   const isAdvanced = mode === 'native' || mode === 'all';
 
   const handleExport = useCallback(async () => {
     if (!isValid || !isTokenValid) return;
-
     setStatus('exporting');
     setError('');
     setProgress('Connecting to Dogechain RPC...');
@@ -36,24 +33,17 @@ export default function Home() {
         mode,
         max: maxBlocks,
       });
-
       if (tokenAddress && mode === 'token') {
         params.set('token', tokenAddress.toLowerCase());
       }
-
-      setProgress('Fetching blockchain data... This may take a moment.');
-
+      setProgress('Fetching blockchain data...');
       const response = await fetch(`/api/export?${params.toString()}`);
-
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || `HTTP ${response.status}`);
       }
-
       const count = response.headers.get('X-Record-Count');
       setRecordCount(parseInt(count || '0'));
-
-      // Download CSV
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -63,14 +53,11 @@ export default function Home() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
       setStatus('done');
-      setProgress(`Download complete! ${count || 0} transactions exported.`);
+      setProgress(`Download complete — ${count || 0} transactions exported.`);
     } catch (err) {
       setStatus('error');
-      setError(
-        err instanceof Error ? err.message : 'An unexpected error occurred'
-      );
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setProgress('');
     }
   }, [address, tokenAddress, mode, maxBlocks, isValid, isTokenValid]);
@@ -83,23 +70,28 @@ export default function Home() {
   };
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
+    <main className="mx-auto max-w-xl px-5 py-16 sm:py-24 fade-in">
       {/* Header */}
-      <div className="mb-8 text-center">
-        <h1 className="mb-2 text-4xl font-bold tracking-tight">
-          🐕 Dogechain Data Exporter
-        </h1>
-        <p className="text-gray-400">
-          Export your wallet&apos;s ERC20 token transfers to CSV.
-          <br />
-          <span className="text-sm text-gray-500">
-            Free &amp; open source • No API keys required • Before Dogechain shuts down ~Aug 7
+      <div className="mb-12 text-center">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/5 px-4 py-1.5 text-xs font-medium text-amber-400/80">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
           </span>
+          Dogechain shutting down ~Aug 7 — export now
+        </div>
+        <h1 className="mb-3 text-4xl font-extrabold tracking-tight sm:text-5xl">
+          <span className="shimmer-text">Dogechain</span>{' '}
+          <span className="text-white">Data Exporter</span>
+        </h1>
+        <p className="mx-auto max-w-md text-sm leading-relaxed text-gray-400">
+          Export your wallet&apos;s ERC20 token transfers to CSV.
+          No sign-up, no API keys, no limits.
         </p>
       </div>
 
       {/* Main Card */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
+      <div className="glass-card gradient-border rounded-2xl p-6 sm:p-8">
         {/* Address Input */}
         <div className="mb-5">
           <label
@@ -117,72 +109,63 @@ export default function Home() {
               if (status !== 'idle') handleReset();
             }}
             placeholder="0x..."
-            className={`w-full rounded-lg border bg-gray-800 px-4 py-3 font-mono text-sm placeholder-gray-600 transition-colors focus:outline-none focus:ring-2 ${
-              address && !isValid
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-700 focus:ring-amber-500'
+            className={`modern-input w-full px-4 py-3.5 font-mono text-sm text-white ${
+              address && !isValid ? 'error' : ''
             }`}
             disabled={status === 'exporting'}
           />
           {address && !isValid && (
-            <p className="mt-1 text-xs text-red-400">
+            <p className="mt-1.5 text-xs text-red-400/90">
               Must be a valid 0x-prefixed address (42 characters)
             </p>
           )}
         </div>
 
-        {/* Optional: Token Address (always visible for ERC20) */}
-        <div className="mb-5">
+        {/* Token Address */}
+        <div className="mb-6">
           <label
             htmlFor="token"
             className="mb-2 block text-sm font-medium text-gray-300"
           >
-            Token Contract Address{' '}
-            <span className="text-gray-500">(optional — all tokens if blank)</span>
+            Token Contract{' '}
+            <span className="text-gray-500 font-normal">(optional — blank for all)</span>
           </label>
           <input
             id="token"
             type="text"
             value={tokenAddress}
             onChange={(e) => setTokenAddress(e.target.value)}
-            placeholder="0x... (leave blank for all tokens)"
-            className={`w-full rounded-lg border bg-gray-800 px-4 py-3 font-mono text-sm placeholder-gray-600 transition-colors focus:outline-none focus:ring-2 ${
-              tokenAddress && !isTokenValid
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-700 focus:ring-amber-500'
+            placeholder="0x... leave blank for all tokens"
+            className={`modern-input w-full px-4 py-3.5 font-mono text-sm text-white ${
+              tokenAddress && !isTokenValid ? 'error' : ''
             }`}
             disabled={status === 'exporting'}
           />
           {tokenAddress && !isTokenValid && (
-            <p className="mt-1 text-xs text-red-400">
-              Invalid token contract address
-            </p>
+            <p className="mt-1.5 text-xs text-red-400/90">Invalid contract address</p>
           )}
         </div>
 
-        {/* Max Blocks (default, non-scary label) */}
+        {/* Block Range */}
         <div className="mb-6">
           <label
             htmlFor="maxBlocks"
             className="mb-2 block text-sm font-medium text-gray-300"
           >
-            Block Range{' '}
-            <span className="text-gray-500">
-              (how far back to search)
-            </span>
+            Block Range
           </label>
           <select
             id="maxBlocks"
             value={maxBlocks}
             onChange={(e) => setMaxBlocks(e.target.value)}
             disabled={status === 'exporting'}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="modern-select w-full px-4 py-3.5 text-sm text-white"
           >
-            <option value="100">100 blocks (recent)</option>
-            <option value="1000">1,000 blocks (~hours)</option>
-            <option value="10000">10,000 blocks</option>
-            <option value="100000">100,000 blocks</option>
-            <option value="1000000">1,000,000 blocks</option>
+            <option value="100">Last 100 blocks (recent)</option>
+            <option value="1000">Last 1,000 blocks</option>
+            <option value="10000">Last 10,000 blocks</option>
+            <option value="100000">Last 100,000 blocks</option>
+            <option value="1000000">Last 1,000,000 blocks</option>
           </select>
         </div>
 
@@ -190,57 +173,51 @@ export default function Home() {
         <button
           onClick={handleExport}
           disabled={!isValid || !isTokenValid || status === 'exporting'}
-          className="w-full rounded-lg bg-amber-500 px-6 py-3 font-bold text-gray-900 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-amber-500"
+          className="btn-gradient w-full px-6 py-4 text-base text-gray-900"
         >
           {status === 'exporting'
             ? '⏳ Exporting...'
             : status === 'done'
               ? '✅ Downloaded — Export Again?'
-              : '📥 Export ERC20 Transfers to CSV'}
+              : '📥 Export ERC20 Transfers'}
         </button>
 
-        {/* Advanced Options Toggle */}
+        {/* Advanced Toggle */}
         <button
           onClick={() => {
             setShowAdvanced(!showAdvanced);
-            if (showAdvanced && isAdvanced) {
-              setMode('token');
-            }
+            if (showAdvanced && isAdvanced) setMode('token');
           }}
-          className="mt-4 w-full text-center text-xs text-gray-500 hover:text-gray-400 transition-colors"
+          className="mt-5 w-full text-center text-xs text-gray-500 transition-colors hover:text-gray-400"
         >
-          {showAdvanced ? '▲ Hide advanced options' : '▼ Advanced options (native DOGE)'}
+          {showAdvanced ? '▲ Hide advanced options' : '▼ Advanced: Native DOGE scanning'}
         </button>
 
         {/* Advanced Panel */}
         {showAdvanced && (
-          <div className="mt-3 rounded-lg border border-yellow-900/50 bg-yellow-950/20 p-4">
-            <p className="mb-3 text-xs text-yellow-400/90">
-              ⚠️ <strong>Native DOGE scanning</strong> fetches blocks one-by-one via RPC.
-              It&apos;s significantly slower than ERC20 log scanning. 100 blocks ≈ 20s.
-              Use small ranges only.
-            </p>
+          <div className="advanced-panel mt-4 p-4">
+            <div className="mb-3 flex items-start gap-2">
+              <span className="mt-0.5 text-yellow-400">⚠️</span>
+              <p className="text-xs leading-relaxed text-yellow-400/80">
+                Native DOGE scans blocks one-by-one via RPC.
+                <strong className="text-yellow-400"> 100 blocks ≈ 20 seconds.</strong>{' '}
+                Keep ranges small.
+              </p>
+            </div>
             <div className="flex gap-2">
               {(['native', 'all'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
                   disabled={status === 'exporting'}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                    mode === m
-                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300'
-                  } disabled:opacity-50`}
+                  className={`btn-pill flex-1 px-3 py-2.5 text-xs font-medium ${
+                    mode === m ? 'active' : 'text-gray-400'
+                  } disabled:opacity-40`}
                 >
-                  {m === 'native' ? 'Native DOGE Only' : 'All (ERC20 + DOGE)'}
+                  {m === 'native' ? 'Native DOGE Only' : 'All (Tokens + DOGE)'}
                 </button>
               ))}
             </div>
-            {mode === 'token' && (
-              <p className="mt-2 text-xs text-gray-500">
-                Currently in default mode (ERC20 tokens). Select an option above to enable native DOGE.
-              </p>
-            )}
           </div>
         )}
       </div>
@@ -248,74 +225,78 @@ export default function Home() {
       {/* Status Messages */}
       {(progress || error) && (
         <div
-          className={`mt-4 rounded-lg border p-4 text-sm ${
+          className={`mt-5 rounded-xl border p-4 text-sm fade-in ${
             error
-              ? 'border-red-800 bg-red-900/20 text-red-300'
+              ? 'border-red-500/20 bg-red-500/5 text-red-300'
               : status === 'done'
-                ? 'border-green-800 bg-green-900/20 text-green-300'
-                : 'border-gray-800 bg-gray-900 text-gray-300'
+                ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-300'
+                : 'border-white/5 bg-white/[0.02] text-gray-300'
           }`}
         >
           {error && <p>❌ {error}</p>}
           {progress && !error && <p>{progress}</p>}
+          {recordCount > 0 && !error && (
+            <p className="mt-1 text-xs opacity-60">{recordCount} transaction{recordCount !== 1 ? 's' : ''} found</p>
+          )}
           {status === 'exporting' && (
             <div className="mt-3">
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-800">
-                <div
-                  className="h-full animate-pulse rounded-full bg-amber-500"
-                  style={{ width: '60%' }}
-                />
+              <div className="progress-bar">
+                <div className="progress-bar-fill" />
               </div>
               <p className="mt-2 text-xs text-gray-500">
                 {isAdvanced
-                  ? 'Scanning blocks one-by-one via RPC. This may take several minutes.'
-                  : 'Fetching ERC20 transfer logs via RPC. This may take a moment.'}
+                  ? 'Scanning blocks via RPC — this will take a while.'
+                  : 'Fetching transfer logs via RPC...'}
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Info Section */}
-      <div className="mt-8 rounded-xl border border-gray-800 bg-gray-900/50 p-5">
-        <h2 className="mb-3 text-lg font-semibold text-gray-200">
-          ℹ️ How It Works
-        </h2>
-        <ul className="space-y-2 text-sm text-gray-400">
-          <li>
-            📡{' '}
-            <strong className="text-gray-300">Data Source:</strong> Fetches
-            directly from Dogechain RPC nodes (no API key needed).
-          </li>
-          <li>
-            🪙{' '}
-            <strong className="text-gray-300">ERC20 Tokens:</strong> Uses
-            eth_getLogs to efficiently find Transfer events indexed by
-            your wallet. Fast — scans 100K blocks in ~1 second.
-          </li>
-          <li>
-            📄{' '}
-            <strong className="text-gray-300">CSV Columns:</strong> Tx Hash,
-            Block, Timestamp, Type (Send/Receive), From, To, Token Symbol,
-            Amount, Gas, Status.
-          </li>
-          <li>
-            ⚠️{' '}
-            <strong className="text-gray-300">Dogechain Shutdown:</strong>{' '}
-            Dogechain is shutting down ~August 7, 2026. Export your data before then!
-          </li>
-        </ul>
+      {/* How It Works */}
+      <div className="info-card mt-10 p-6">
+        <h2 className="mb-4 text-base font-semibold text-gray-200">How it works</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            {
+              icon: '📡',
+              title: 'RPC Direct',
+              desc: 'Queries Dogechain nodes directly. No API keys, no middlemen.',
+            },
+            {
+              icon: '🪙',
+              title: 'ERC20 Logs',
+              desc: 'Indexed Transfer events via eth_getLogs. 100K blocks in ~1 second.',
+            },
+            {
+              icon: '📄',
+              title: 'Clean CSV',
+              desc: '13 columns: hash, block, time, type, from, to, token, amount, gas, status.',
+            },
+            {
+              icon: '⚡',
+              title: 'Instant Download',
+              desc: 'Generated server-side, streamed to your browser. No data stored.',
+            },
+          ].map(({ icon, title, desc }) => (
+            <div key={title} className="rounded-lg bg-white/[0.02] p-3.5">
+              <div className="mb-1.5 text-lg">{icon}</div>
+              <h3 className="mb-1 text-sm font-medium text-gray-200">{title}</h3>
+              <p className="text-xs leading-relaxed text-gray-500">{desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Footer */}
-      <footer className="mt-8 text-center text-xs text-gray-600">
-        <p>
+      <footer className="mt-12 text-center">
+        <p className="text-xs text-gray-600">
           Free &amp; Open Source • MIT License •{' '}
           <a
             href="https://github.com/DBOT-DC/dogechain-exporter"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-500 underline hover:text-gray-400"
+            className="text-gray-500 transition-colors hover:text-amber-400"
           >
             GitHub
           </a>
