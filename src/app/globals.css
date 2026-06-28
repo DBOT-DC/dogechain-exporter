@@ -1,11 +1,5 @@
 @import "tailwindcss";
 
-@theme {
-  --color-doge-gold: #f5a623;
-  --color-doge-orange: #f7931a;
-  --color-doge-warm: #ff6b35;
-}
-
 /* Animated gradient background */
 body {
   background: #0a0a0f;
