@@ -14,11 +14,13 @@ export default function Home() {
   const [progress, setProgress] = useState('');
   const [recordCount, setRecordCount] = useState(0);
   const [error, setError] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isValid =
     /^0x[0-9a-fA-F]{40}$/.test(address);
   const isTokenValid =
     tokenAddress === '' || /^0x[0-9a-fA-F]{40}$/.test(tokenAddress);
+  const isAdvanced = mode === 'native' || mode === 'all';
 
   const handleExport = useCallback(async () => {
     if (!isValid || !isTokenValid) return;
@@ -88,11 +90,10 @@ export default function Home() {
           🐕 Dogechain Data Exporter
         </h1>
         <p className="text-gray-400">
-          Export your wallet&apos;s on-chain transaction history to CSV.
+          Export your wallet&apos;s ERC20 token transfers to CSV.
           <br />
           <span className="text-sm text-gray-500">
-            Free &amp; open source • No API keys required • Works with ERC20 tokens
-            &amp; native DOGE
+            Free &amp; open source • No API keys required • Before Dogechain shuts down ~Aug 7
           </span>
         </p>
       </div>
@@ -130,73 +131,44 @@ export default function Home() {
           )}
         </div>
 
-        {/* Mode Selection */}
+        {/* Optional: Token Address (always visible for ERC20) */}
         <div className="mb-5">
-          <label className="mb-2 block text-sm font-medium text-gray-300">
-            Export Type
+          <label
+            htmlFor="token"
+            className="mb-2 block text-sm font-medium text-gray-300"
+          >
+            Token Contract Address{' '}
+            <span className="text-gray-500">(optional — all tokens if blank)</span>
           </label>
-          <div className="flex gap-2">
-            {(['token', 'native', 'all'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                disabled={status === 'exporting'}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                  mode === m
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-400'
-                    : 'border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300'
-                } disabled:opacity-50`}
-              >
-                {m === 'token'
-                  ? 'ERC20 Tokens'
-                  : m === 'native'
-                    ? 'Native DOGE'
-                    : 'All'}
-              </button>
-            ))}
-          </div>
+          <input
+            id="token"
+            type="text"
+            value={tokenAddress}
+            onChange={(e) => setTokenAddress(e.target.value)}
+            placeholder="0x... (leave blank for all tokens)"
+            className={`w-full rounded-lg border bg-gray-800 px-4 py-3 font-mono text-sm placeholder-gray-600 transition-colors focus:outline-none focus:ring-2 ${
+              tokenAddress && !isTokenValid
+                ? 'border-red-500 focus:ring-red-500'
+                : 'border-gray-700 focus:ring-amber-500'
+            }`}
+            disabled={status === 'exporting'}
+          />
+          {tokenAddress && !isTokenValid && (
+            <p className="mt-1 text-xs text-red-400">
+              Invalid token contract address
+            </p>
+          )}
         </div>
 
-        {/* Optional: Token Address */}
-        {mode === 'token' && (
-          <div className="mb-5">
-            <label
-              htmlFor="token"
-              className="mb-2 block text-sm font-medium text-gray-300"
-            >
-              Token Contract Address{' '}
-              <span className="text-gray-500">(optional — all tokens if blank)</span>
-            </label>
-            <input
-              id="token"
-              type="text"
-              value={tokenAddress}
-              onChange={(e) => setTokenAddress(e.target.value)}
-              placeholder="0x... (leave blank for all tokens)"
-              className={`w-full rounded-lg border bg-gray-800 px-4 py-3 font-mono text-sm placeholder-gray-600 transition-colors focus:outline-none focus:ring-2 ${
-                tokenAddress && !isTokenValid
-                  ? 'border-red-500 focus:ring-red-500'
-                  : 'border-gray-700 focus:ring-amber-500'
-              }`}
-              disabled={status === 'exporting'}
-            />
-            {tokenAddress && !isTokenValid && (
-              <p className="mt-1 text-xs text-red-400">
-                Invalid token contract address
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Max Blocks */}
+        {/* Max Blocks (default, non-scary label) */}
         <div className="mb-6">
           <label
             htmlFor="maxBlocks"
             className="mb-2 block text-sm font-medium text-gray-300"
           >
-            Max Blocks to Scan{' '}
+            Block Range{' '}
             <span className="text-gray-500">
-              (lower = faster • native DOGE scans block-by-block)
+              (how far back to search)
             </span>
           </label>
           <select
@@ -206,11 +178,11 @@ export default function Home() {
             disabled={status === 'exporting'}
             className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
-            <option value="100">100 blocks (~3 min)</option>
-            <option value="1000">1,000 blocks (~30 min)</option>
-            <option value="10000">10,000 blocks (~5.5 hrs)</option>
-            <option value="100000">100,000 blocks (~2.3 days)</option>
-            <option value="1000000">1,000,000 blocks (~23 days)</option>
+            <option value="100">100 blocks (recent)</option>
+            <option value="1000">1,000 blocks (~hours)</option>
+            <option value="10000">10,000 blocks</option>
+            <option value="100000">100,000 blocks</option>
+            <option value="1000000">1,000,000 blocks</option>
           </select>
         </div>
 
@@ -224,8 +196,53 @@ export default function Home() {
             ? '⏳ Exporting...'
             : status === 'done'
               ? '✅ Downloaded — Export Again?'
-              : '📥 Export to CSV'}
+              : '📥 Export ERC20 Transfers to CSV'}
         </button>
+
+        {/* Advanced Options Toggle */}
+        <button
+          onClick={() => {
+            setShowAdvanced(!showAdvanced);
+            if (showAdvanced && isAdvanced) {
+              setMode('token');
+            }
+          }}
+          className="mt-4 w-full text-center text-xs text-gray-500 hover:text-gray-400 transition-colors"
+        >
+          {showAdvanced ? '▲ Hide advanced options' : '▼ Advanced options (native DOGE)'}
+        </button>
+
+        {/* Advanced Panel */}
+        {showAdvanced && (
+          <div className="mt-3 rounded-lg border border-yellow-900/50 bg-yellow-950/20 p-4">
+            <p className="mb-3 text-xs text-yellow-400/90">
+              ⚠️ <strong>Native DOGE scanning</strong> fetches blocks one-by-one via RPC.
+              It&apos;s significantly slower than ERC20 log scanning. 100 blocks ≈ 20s.
+              Use small ranges only.
+            </p>
+            <div className="flex gap-2">
+              {(['native', 'all'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  disabled={status === 'exporting'}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                    mode === m
+                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                      : 'border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300'
+                  } disabled:opacity-50`}
+                >
+                  {m === 'native' ? 'Native DOGE Only' : 'All (ERC20 + DOGE)'}
+                </button>
+              ))}
+            </div>
+            {mode === 'token' && (
+              <p className="mt-2 text-xs text-gray-500">
+                Currently in default mode (ERC20 tokens). Select an option above to enable native DOGE.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Status Messages */}
@@ -250,8 +267,9 @@ export default function Home() {
                 />
               </div>
               <p className="mt-2 text-xs text-gray-500">
-                Scanning blockchain data via RPC. This may take several minutes
-                depending on block range and activity.
+                {isAdvanced
+                  ? 'Scanning blocks one-by-one via RPC. This may take several minutes.'
+                  : 'Fetching ERC20 transfer logs via RPC. This may take a moment.'}
               </p>
             </div>
           )}
@@ -268,24 +286,23 @@ export default function Home() {
             📡{' '}
             <strong className="text-gray-300">Data Source:</strong> Fetches
             directly from Dogechain RPC nodes (no API key needed).
-            Blockscout explorer API is currently unavailable.
           </li>
           <li>
             🪙{' '}
-            <strong className="text-gray-300">Token Transfers:</strong> Uses
-            eth_getLogs to efficiently find ERC20 Transfer events indexed by
-            your wallet address. Fast and scalable.
+            <strong className="text-gray-300">ERC20 Tokens:</strong> Uses
+            eth_getLogs to efficiently find Transfer events indexed by
+            your wallet. Fast — scans 100K blocks in ~1 second.
           </li>
           <li>
-            🐶{' '}
-            <strong className="text-gray-300">Native DOGE:</strong> Scans blocks
-            one-by-one to find transactions where your address is sender or
-            receiver. Slower — limit block range accordingly.
+            📄{' '}
+            <strong className="text-gray-300">CSV Columns:</strong> Tx Hash,
+            Block, Timestamp, Type (Send/Receive), From, To, Token Symbol,
+            Amount, Gas, Status.
           </li>
           <li>
             ⚠️{' '}
-            <strong className="text-gray-300">Note:</strong> Dogechain is
-            shutting down ~August 7, 2026. Export your data before then!
+            <strong className="text-gray-300">Dogechain Shutdown:</strong>{' '}
+            Dogechain is shutting down ~August 7, 2026. Export your data before then!
           </li>
         </ul>
       </div>
@@ -295,7 +312,7 @@ export default function Home() {
         <p>
           Free &amp; Open Source • MIT License •{' '}
           <a
-            href="https://github.com/pennybags/dogechain-exporter"
+            href="https://github.com/DBOT-DC/dogechain-exporter"
             target="_blank"
             rel="noopener noreferrer"
             className="text-gray-500 underline hover:text-gray-400"
