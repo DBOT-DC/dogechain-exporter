@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
   const mode = (searchParams.get('mode') || 'token') as 'token' | 'native' | 'all';
   const startBlock = searchParams.get('start') ? parseInt(searchParams.get('start')!) : undefined;
   const endBlock = searchParams.get('end') ? parseInt(searchParams.get('end')!) : undefined;
-  const maxBlocks = searchParams.get('max') ? parseInt(searchParams.get('max')!) : undefined;
+  const max = searchParams.get('max');
+  const maxBlocks = max ? (parseInt(max) === 0 ? undefined : parseInt(max)) : undefined;
 
   // Validate address
   if (!isValidAddress(address)) {

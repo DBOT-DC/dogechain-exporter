@@ -9,7 +9,7 @@ export default function Home() {
   const [address, setAddress] = useState('');
   const [tokenAddress, setTokenAddress] = useState('');
   const [mode, setMode] = useState<ExportMode>('token');
-  const [maxBlocks, setMaxBlocks] = useState('10000');
+  const [maxBlocks, setMaxBlocks] = useState('1000000');
   const [status, setStatus] = useState<ExportStatus>('idle');
   const [progress, setProgress] = useState('');
   const [recordCount, setRecordCount] = useState(0);
@@ -166,6 +166,7 @@ export default function Home() {
             <option value="10000">Last 10,000 blocks</option>
             <option value="100000">Last 100,000 blocks</option>
             <option value="1000000">Last 1,000,000 blocks</option>
+            <option value="0">All Time (from genesis)</option>
           </select>
         </div>
 

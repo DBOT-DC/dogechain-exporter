@@ -31,8 +31,7 @@ type ProgressCallback = (progress: ExportProgress) => void;
 
 /**
  * Fetch ERC20 token transfers for a wallet via eth_getLogs.
- * Efficiently processes logs in block ranges without per-tx RPC calls.
- * Timestamp is fetched once per unique block.
+ * Runs outgoing and incoming queries in parallel batches.
  */
 async function fetchTokenTransfers(
   walletAddress: string,
@@ -43,145 +42,160 @@ async function fetchTokenTransfers(
 ): Promise<TransactionRecord[]> {
   const transactions: TransactionRecord[] = [];
   const walletTopic = addressToTopic(walletAddress);
-  const chunkSize = LOG_BLOCK_CHUNK_SIZE; // 900 blocks per call — within all RPC limits
+  const chunkSize = LOG_BLOCK_CHUNK_SIZE; // 900 blocks per call
 
-  // We need to query with wallet as from (topic[1]) AND as to (topic[2])
-  const topicFilters = [
-    [TRANSFER_EVENT_TOPIC, walletTopic, null],  // outgoing
-    [TRANSFER_EVENT_TOPIC, null, walletTopic],   // incoming
-  ];
+  // Run outgoing and incoming in parallel
+  const [outgoing, incoming] = await Promise.all([
+    fetchTokenDirection(walletAddress, tokenAddress, walletTopic, startBlock, endBlock, chunkSize, 'outgoing', onProgress),
+    fetchTokenDirection(walletAddress, tokenAddress, walletTopic, startBlock, endBlock, chunkSize, 'incoming', onProgress),
+  ]);
 
-  for (let topicIdx = 0; topicIdx < topicFilters.length; topicIdx++) {
-    let currentBlock = startBlock;
+  transactions.push(...outgoing, ...incoming);
 
-    while (currentBlock <= endBlock) {
-      const fromBlock = currentBlock;
-      const toBlock = Math.min(fromBlock + chunkSize, endBlock);
-
-      onProgress?.({
-        phase: 'Token Transfers',
-        current: fromBlock - startBlock,
-        total: endBlock - startBlock,
-        message: `Scanning blocks ${fromBlock.toLocaleString()} - ${toBlock.toLocaleString()} (${topicIdx === 0 ? 'outgoing' : 'incoming'})`,
-        recordCount: transactions.length,
-      });
-
-      const filter: Parameters<typeof getLogs>[0] = {
-        fromBlock: '0x' + fromBlock.toString(16),
-        toBlock: '0x' + toBlock.toString(16),
-        topics: topicFilters[topicIdx] as (string | null)[],
-      };
-
-      if (tokenAddress) {
-        filter.address = normalizeAddress(tokenAddress);
-      }
-
-      let logs;
-      try {
-        logs = await getLogs(filter);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`Error fetching logs for blocks ${fromBlock}-${toBlock}: ${errMsg}`);
-        // If it's a block range limit error, halve the range and retry
-        if (errMsg.includes('exceed') || errMsg.includes('maximum') || errMsg.includes('size exceeded')) {
-          const range = toBlock - fromBlock;
-          if (range > 10) {
-            // Retry with half the range — will be picked up in next iteration
-            currentBlock = fromBlock;
-            // Temporarily reduce effective chunk by adjusting the outer loop
-            // We can't modify chunkSize mid-loop, so just skip forward by half
-            currentBlock = fromBlock + Math.floor(range / 2);
-            console.error(`Retrying with smaller range: ${fromBlock}-${currentBlock - 1}`);
-          } else {
-            currentBlock = toBlock + 1;
-          }
-        } else {
-          currentBlock = toBlock + 1;
-        }
-        continue;
-      }
-
-      if (logs.length === 0) {
-        currentBlock = toBlock + 1;
-        continue;
-      }
-
-      // Process logs - extract data directly from log entries
-      for (const log of logs) {
-        const topics = (log.topics as string[]) || [];
-        const txHash = String(log.transactionHash);
-        const blockNum = parseInt(String(log.blockNumber), 16);
-
-        // Extract addresses from topics
-        const topic1 = String(topics[1] || '');
-        const topic2 = String(topics[2] || '');
-        const fromAddr = topic1.length === 66 ? '0x' + topic1.slice(26) : topic1;
-        const toAddr = topic2.length === 66 ? '0x' + topic2.slice(26) : topic2;
-
-        const tokenAmount = log.data ? hexWeiToValue(String(log.data), 18) : '0';
-        const type = classifyTx(fromAddr, toAddr, walletAddress);
-
-        transactions.push([
-          txHash,
-          blockNum.toString(),
-          '', // timestamp filled in later
-          type,
-          fromAddr,
-          toAddr,
-          'N/A', // native value not applicable for token transfers
-          String(log.address || ''),
-          '', // symbol - needs separate call, skip for performance
-          tokenAmount,
-          '', // gas - skip for performance
-          '', // gas price - skip for performance
-          '', // status - skip for performance
-        ]);
-      }
-
-      // Handle pagination: if we hit the log limit, advance past last log block
-      if (logs.length >= MAX_LOGS_PER_BATCH) {
-        const lastLog = logs[logs.length - 1];
-        const lastBlock = parseInt(String(lastLog.blockNumber), 16);
-        // Advance past the last block with results — may miss some logs
-        // in the same block but avoids infinite loop
-        currentBlock = lastBlock + 1;
-      } else {
-        currentBlock = toBlock + 1;
-      }
+  // Deduplicate by tx hash (a tx could appear in both outgoing and incoming if self-send)
+  const seen = new Set<string>();
+  const deduped: TransactionRecord[] = [];
+  for (const tx of transactions) {
+    if (!seen.has(tx[0])) {
+      seen.add(tx[0]);
+      deduped.push(tx);
     }
   }
 
-  // Now fetch timestamps for unique blocks
-  const uniqueBlocks = [...new Set(transactions.map((t) => t[1]))];
+  // Fetch timestamps in parallel batches of 10
+  const uniqueBlocks = [...new Set(deduped.map((t) => t[1]))];
   const blockTimestamps = new Map<string, string>();
+  // Fetch timestamps in parallel batches of 20
+  for (let i = 0; i < uniqueBlocks.length; i += 20) {
+    const batch = uniqueBlocks.slice(i, i + 20);
+    await Promise.all(
+      batch.map(async (blockStr) => {
+        try {
+          const block = await getBlockByNumber(parseInt(blockStr));
+          if (block?.timestamp) {
+            blockTimestamps.set(blockStr, hexTimestampToUTC(String(block.timestamp)));
+          }
+        } catch (err) {
+          console.error(`Error fetching block ${blockStr}:`, err);
+        }
+      })
+    );
 
-  for (let i = 0; i < uniqueBlocks.length; i++) {
-    if (i % 10 === 0) {
+    if (i % 50 === 0) {
       onProgress?.({
         phase: 'Fetching timestamps',
         current: i,
         total: uniqueBlocks.length,
         message: `Fetching block timestamps (${i}/${uniqueBlocks.length})`,
-        recordCount: transactions.length,
+        recordCount: deduped.length,
       });
     }
-
-    try {
-      const block = await getBlockByNumber(parseInt(uniqueBlocks[i]));
-      if (block?.timestamp) {
-        blockTimestamps.set(uniqueBlocks[i], hexTimestampToUTC(String(block.timestamp)));
-      }
-    } catch (err) {
-      console.error(`Error fetching block ${uniqueBlocks[i]}:`, err);
-    }
-
-    // Rate limit
-    await new Promise((r) => setTimeout(r, API_RATE_LIMIT_MS));
   }
 
   // Fill in timestamps
-  for (const tx of transactions) {
+  for (const tx of deduped) {
     tx[2] = blockTimestamps.get(tx[1]) || 'Unknown';
+  }
+
+  return deduped;
+}
+
+/**
+ * Fetch token transfers in one direction (outgoing or incoming).
+ */
+async function fetchTokenDirection(
+  walletAddress: string,
+  tokenAddress: string | undefined,
+  walletTopic: string,
+  startBlock: number,
+  endBlock: number,
+  chunkSize: number,
+  direction: 'outgoing' | 'incoming',
+  onProgress?: ProgressCallback,
+): Promise<TransactionRecord[]> {
+  const transactions: TransactionRecord[] = [];
+  let currentBlock = startBlock;
+
+  // topic[1] = from, topic[2] = to
+  const topics: (string | null)[] =
+    direction === 'outgoing'
+      ? [TRANSFER_EVENT_TOPIC, walletTopic, null]
+      : [TRANSFER_EVENT_TOPIC, null, walletTopic];
+
+  // Process chunks in parallel batches of 20
+  const BATCH_SIZE = 20;
+
+  while (currentBlock <= endBlock) {
+    const batchPromises: Promise<void>[] = [];
+
+    for (let b = 0; b < BATCH_SIZE && currentBlock <= endBlock; b++) {
+      const fromBlock = currentBlock;
+      const toBlock = Math.min(fromBlock + chunkSize, endBlock);
+      currentBlock = toBlock + 1;
+
+      batchPromises.push(
+        (async () => {
+          const filter: Parameters<typeof getLogs>[0] = {
+            fromBlock: '0x' + fromBlock.toString(16),
+            toBlock: '0x' + toBlock.toString(16),
+            topics,
+          };
+
+          if (tokenAddress) {
+            filter.address = normalizeAddress(tokenAddress);
+          }
+
+          let logs;
+          try {
+            logs = await getLogs(filter);
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            console.error(`Error fetching logs blocks ${fromBlock}-${toBlock}: ${errMsg}`);
+            return;
+          }
+
+          if (!logs || logs.length === 0) return;
+
+          for (const log of logs) {
+            const logTopics = (log.topics as string[]) || [];
+            const txHash = String(log.transactionHash);
+            const blockNum = parseInt(String(log.blockNumber), 16);
+
+            const topic1 = String(logTopics[1] || '');
+            const topic2 = String(logTopics[2] || '');
+            const fromAddr = topic1.length === 66 ? '0x' + topic1.slice(26) : topic1;
+            const toAddr = topic2.length === 66 ? '0x' + topic2.slice(26) : topic2;
+
+            const tokenAmount = log.data ? hexWeiToValue(String(log.data), 18) : '0';
+            const type = classifyTx(fromAddr, toAddr, walletAddress);
+
+            transactions.push([
+              txHash,
+              blockNum.toString(),
+              '', // timestamp filled in later
+              type,
+              fromAddr,
+              toAddr,
+              'N/A',
+              String(log.address || ''),
+              '',
+              tokenAmount,
+              '', '', '',
+            ]);
+          }
+        })()
+      );
+    }
+
+    await Promise.all(batchPromises);
+
+    onProgress?.({
+      phase: 'Token Transfers',
+      current: Math.min(currentBlock, endBlock) - startBlock,
+      total: endBlock - startBlock,
+      message: `Scanning ${direction} (${Math.min(currentBlock, endBlock).toLocaleString()} / ${endBlock.toLocaleString()})`,
+      recordCount: transactions.length,
+    });
   }
 
   return transactions;
@@ -189,7 +203,7 @@ async function fetchTokenTransfers(
 
 /**
  * Fetch native DOGE transfers by scanning blocks.
- * Efficient: only fetches full block data, checks from/to inline.
+ * Uses parallel batch fetching for speed.
  */
 async function fetchNativeTransfers(
   walletAddress: string,
@@ -201,63 +215,73 @@ async function fetchNativeTransfers(
   const normalizedWallet = normalizeAddress(walletAddress);
   const totalBlocks = endBlock - startBlock + 1;
 
-  for (let blockNum = startBlock; blockNum <= endBlock; blockNum++) {
-    if ((blockNum - startBlock) % 50 === 0) {
+  // Process blocks in parallel batches of 20
+  const BATCH_SIZE = 20;
+
+  for (let i = startBlock; i <= endBlock; i += BATCH_SIZE) {
+    const batchEnd = Math.min(i + BATCH_SIZE - 1, endBlock);
+    const batchPromises: Promise<void>[] = [];
+
+    for (let blockNum = i; blockNum <= batchEnd; blockNum++) {
+      batchPromises.push(
+        (async () => {
+          try {
+            const block = await getBlockByNumber(blockNum, true);
+            if (!block) return;
+
+            const timestamp = hexTimestampToUTC(String(block.timestamp));
+            const txs = block.transactions as Record<string, unknown>[];
+
+            for (const tx of txs) {
+              const from = String(tx.from || '');
+              const to = tx.to ? String(tx.to) : null;
+
+              if (
+                normalizeAddress(from) !== normalizedWallet &&
+                (to === null || normalizeAddress(to) !== normalizedWallet)
+              ) {
+                continue;
+              }
+
+              const type = classifyTx(from, to || '', walletAddress);
+              const value = hexWeiToValue(String(tx.value), 18);
+              const gasLimit = tx.gas ? String(parseInt(String(tx.gas), 16)) : 'N/A';
+              const gasPrice = tx.gasPrice ? hexGasToGwei(String(tx.gasPrice)) : '0';
+
+              transactions.push([
+                String(tx.hash),
+                blockNum.toString(),
+                timestamp,
+                type,
+                from,
+                to || 'Contract Creation',
+                value,
+                '',
+                DOGECHAIN_NATIVE_SYMBOL,
+                value,
+                gasLimit,
+                gasPrice,
+                'Success',
+              ]);
+            }
+          } catch (err) {
+            console.error(`Error scanning block ${blockNum}:`, err);
+          }
+        })()
+      );
+    }
+
+    await Promise.all(batchPromises);
+
+    if ((i - startBlock) % 500 === 0) {
       onProgress?.({
         phase: 'Native Transfers',
-        current: blockNum - startBlock,
+        current: i - startBlock,
         total: totalBlocks,
-        message: `Scanning block ${blockNum.toLocaleString()} / ${endBlock.toLocaleString()}`,
+        message: `Scanning block ${i.toLocaleString()} / ${endBlock.toLocaleString()}`,
         recordCount: transactions.length,
       });
     }
-
-    try {
-      const block = await getBlockByNumber(blockNum, true);
-      if (!block) continue;
-
-      const timestamp = hexTimestampToUTC(String(block.timestamp));
-      const txs = block.transactions as Record<string, unknown>[];
-
-      for (const tx of txs) {
-        const from = String(tx.from || '');
-        const to = tx.to ? String(tx.to) : null;
-
-        if (
-          normalizeAddress(from) !== normalizedWallet &&
-          (to === null || normalizeAddress(to) !== normalizedWallet)
-        ) {
-          continue;
-        }
-
-        const type = classifyTx(from, to || '', walletAddress);
-        const value = hexWeiToValue(String(tx.value), 18);
-        // gas in block tx = gas limit; gasUsed requires receipt (not fetched for perf)
-        const gasLimit = tx.gas ? String(parseInt(String(tx.gas), 16)) : 'N/A';
-        const gasPrice = tx.gasPrice ? hexGasToGwei(String(tx.gasPrice)) : '0';
-
-        transactions.push([
-          String(tx.hash),
-          blockNum.toString(),
-          timestamp,
-          type,
-          from,
-          to || 'Contract Creation',
-          value,
-          '',
-          DOGECHAIN_NATIVE_SYMBOL,
-          value,
-          gasLimit,
-          gasPrice,
-          'Success', // block transactions are confirmed
-        ]);
-      }
-    } catch (err) {
-      console.error(`Error scanning block ${blockNum}:`, err);
-    }
-
-    // Rate limit between block fetches
-    await new Promise((r) => setTimeout(r, API_RATE_LIMIT_MS));
   }
 
   return transactions;
@@ -282,7 +306,10 @@ export async function exportWalletData(
   if (!walletAddress) throw new Error('Wallet address is required');
 
   const latestBlock = endBlock || (await getLatestBlockNumber());
-  const fromBlock = startBlock || Math.max(0, latestBlock - (maxBlocks || MAX_BLOCKS_TO_SCAN_NATIVE));
+  // When maxBlocks is 0/undefined, scan from genesis
+  const fromBlock = startBlock !== undefined
+    ? startBlock
+    : Math.max(0, latestBlock - (maxBlocks ?? 0));
   const effectiveEndBlock = endBlock || latestBlock;
 
   onProgress?.({
