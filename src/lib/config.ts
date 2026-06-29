@@ -21,7 +21,7 @@ export const EXPLORER_URL = 'https://explorer.dogechain.dog';
 
 // Limits
 export const MAX_LOGS_PER_BATCH = 1000; // eth_getLogs max response entries
-export const LOG_BLOCK_CHUNK_SIZE = 900; // blocks per eth_getLogs call (thirdweb limit ~1000)
+export const LOG_BLOCK_CHUNK_SIZE = 4500; // blocks per eth_getLogs call (dogechain.dog limit ~5000)
 export const MAX_BLOCKS_TO_SCAN_NATIVE = 10000; // practical limit for native tx scanning
 export const MAX_BLOCK_BATCH_SIZE = 100; // blocks per eth_getBlockByNumber call
 export const API_TIMEOUT_MS = 30000;

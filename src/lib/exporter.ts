@@ -306,10 +306,11 @@ export async function exportWalletData(
   if (!walletAddress) throw new Error('Wallet address is required');
 
   const latestBlock = endBlock || (await getLatestBlockNumber());
-  // When maxBlocks is 0/undefined, scan from genesis
+  // Default to 1M blocks; maxBlocks=0 means from genesis
+  const effectiveMaxBlocks = maxBlocks ?? 1_000_000;
   const fromBlock = startBlock !== undefined
     ? startBlock
-    : Math.max(0, latestBlock - (maxBlocks ?? 0));
+    : (effectiveMaxBlocks === 0 ? 0 : Math.max(0, latestBlock - effectiveMaxBlocks));
   const effectiveEndBlock = endBlock || latestBlock;
 
   onProgress?.({

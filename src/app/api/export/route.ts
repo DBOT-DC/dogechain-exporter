@@ -14,7 +14,9 @@ export async function GET(request: NextRequest) {
   const startBlock = searchParams.get('start') ? parseInt(searchParams.get('start')!) : undefined;
   const endBlock = searchParams.get('end') ? parseInt(searchParams.get('end')!) : undefined;
   const max = searchParams.get('max');
-  const maxBlocks = max ? (parseInt(max) === 0 ? undefined : parseInt(max)) : undefined;
+  // max=0 means "all time" (from genesis) → pass 0 to exporter
+  // no max param → undefined (exporter defaults to 1M)
+  const maxBlocks = max !== null ? parseInt(max) : undefined;
 
   // Validate address
   if (!isValidAddress(address)) {
