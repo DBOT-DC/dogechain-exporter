@@ -115,10 +115,10 @@ export default function Home() {
     <main className="mx-auto max-w-xl px-5 py-16 sm:py-24 fade-in">
       {/* Header */}
       <div className="mb-12 text-center">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/5 px-4 py-1.5 text-xs font-medium text-amber-400/80">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#7cfb5c]/20 bg-[#7cfb5c]/5 px-4 py-1.5 text-xs font-medium text-[#7cfb5c]/80">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#7cfb5c] opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#7cfb5c]" />
           </span>
           Dogechain shutting down ~Aug 7 — export now
         </div>
@@ -126,7 +126,7 @@ export default function Home() {
           <span className="shimmer-text">Dogechain</span>{' '}
           <span className="text-white">Data Exporter</span>
         </h1>
-        <p className="mx-auto max-w-md text-sm leading-relaxed text-gray-400">
+        <p className="mx-auto max-w-md text-sm leading-relaxed text-white/70">
           Export your wallet&apos;s complete transaction history to CSV.
           All data, from genesis to current block. No sign-up, no limits.
         </p>
@@ -138,7 +138,7 @@ export default function Home() {
         <div className="mb-5">
           <label
             htmlFor="address"
-            className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-300"
+            className="mb-2 flex items-center gap-2 text-sm font-medium text-white/70"
           >
             Wallet Address
           </label>
@@ -164,8 +164,7 @@ export default function Home() {
         <button
           onClick={handleExport}
           disabled={!isValid || status === 'exporting'}
-          className="btn-gradient w-full flex items-center justify-center gap-2 px-6 py-4 text-base text-gray-900"
-        >
+          className="btn-gradient w-full flex items-center justify-center gap-2 px-6 py-4 text-base text-gray-900"        >
           {status === 'exporting' ? (
             <>
               <IconSpinner />
@@ -184,7 +183,7 @@ export default function Home() {
           )}
         </button>
 
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-[#82899a]">
           <IconClock className="w-3.5 h-3.5" />
           All transactions from genesis — no range needed
         </p>
@@ -195,10 +194,10 @@ export default function Home() {
         <div
           className={`mt-5 rounded-xl border p-4 text-sm fade-in ${
             error
-              ? 'border-red-500/20 bg-red-500/5 text-red-300'
+              ? 'border-[#fb5c5c]/20 bg-[#fb5c5c]/5 text-[#fb5c5c]'
               : status === 'done'
-                ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-300'
-                : 'border-white/5 bg-white/[0.02] text-gray-300'
+                ? 'border-[#7cfb5c]/20 bg-[#7cfb5c]/5 text-[#7cfb5c]'
+                : 'border-white/5 bg-white/[0.02] text-white/70'
           }`}
         >
           {error && <p>{error}</p>}
@@ -213,7 +212,7 @@ export default function Home() {
               <div className="progress-bar">
                 <div className="progress-bar-fill" />
               </div>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-[#82899a]">
                 Fetching from Dogechain Explorer API...
               </p>
             </div>
@@ -223,7 +222,7 @@ export default function Home() {
 
       {/* How It Works */}
       <div className="info-card mt-10 p-6">
-        <h2 className="mb-4 text-base font-semibold text-gray-200">How it works</h2>
+        <h2 className="mb-4 text-base font-semibold text-white">How it works</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {[
             {
@@ -247,10 +246,10 @@ export default function Home() {
               desc: 'Indexed data returns in seconds, not minutes. Generated server-side.',
             },
           ].map(({ icon, title, desc }) => (
-            <div key={title} className="rounded-lg bg-white/[0.02] p-3.5">
-              <div className="mb-1.5 text-amber-400/80">{icon}</div>
-              <h3 className="mb-1 text-sm font-medium text-gray-200">{title}</h3>
-              <p className="text-xs leading-relaxed text-gray-500">{desc}</p>
+            <div key={title} className="rounded-lg bg-white/[0.03] p-3.5">
+              <div className="mb-1.5 text-[#7cfb5c]/80">{icon}</div>
+              <h3 className="mb-1 text-sm font-medium text-white">{title}</h3>
+              <p className="text-xs leading-relaxed text-[#82899a]">{desc}</p>
             </div>
           ))}
         </div>
@@ -258,13 +257,13 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="mt-12 text-center">
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-[#82899a]">
           Free &amp; Open Source • MIT License •{' '}
           <a
             href="https://github.com/DBOT-DC/dogechain-exporter"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-500 transition-colors hover:text-amber-400"
+            className="text-[#82899a] transition-colors hover:text-[#7cfb5c]"
           >
             GitHub
           </a>

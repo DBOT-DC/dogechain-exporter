@@ -1,34 +1,49 @@
 @import "tailwindcss";
 
-/* Animated gradient background */
+/* Dogechain Brand Theme — matching dogechain.dog */
+:root {
+  --dc-bg: #000000;
+  --dc-bg-card: #1f2226;
+  --dc-bg-card-hover: #272b30;
+  --dc-primary: #7cfb5c;
+  --dc-primary-dim: rgba(124, 251, 92, 0.15);
+  --dc-secondary: #7b6ffc;
+  --dc-yellow: #fbf55c;
+  --dc-error: #fb5c5c;
+  --dc-text: #ffffff;
+  --dc-text-body: rgba(255, 255, 255, 0.7);
+  --dc-text-muted: #82899a;
+  --dc-border: rgba(255, 255, 255, 0.1);
+  --dc-border-card: rgba(255, 255, 255, 0.08);
+}
+
 body {
-  background: #0a0a0f;
-  color: #e5e5e5;
+  background: var(--dc-bg);
+  color: var(--dc-text);
   overflow-x: hidden;
 }
 
-/* Gradient mesh background */
+/* Gradient mesh background — lime/green tones matching Dogechain */
 .bg-mesh {
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(245, 166, 35, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(247, 147, 26, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, rgba(255, 107, 53, 0.05) 0%, transparent 50%),
-    linear-gradient(180deg, #0a0a0f 0%, #111118 50%, #0a0a0f 100%);
+    radial-gradient(ellipse at 20% 50%, rgba(124, 251, 92, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(123, 111, 252, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(124, 251, 92, 0.02) 0%, transparent 50%),
+    linear-gradient(180deg, #000 0%, #0a0c0a 50%, #000 100%);
 }
 
-/* Glass card */
+/* Glass card — using Dogechain card background */
 .glass-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--dc-bg-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--dc-border-card);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.03),
-    0 20px 50px -12px rgba(0, 0, 0, 0.5),
-    0 0 100px -20px rgba(245, 166, 35, 0.08);
+    0 0 0 1px rgba(124, 251, 92, 0.03),
+    0 20px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* Animated gradient border */
+/* Animated gradient border — lime green */
 .gradient-border {
   position: relative;
 }
@@ -41,10 +56,11 @@ body {
   padding: 1px;
   background: linear-gradient(
     135deg,
-    rgba(245, 166, 35, 0.3),
-    rgba(247, 147, 26, 0.1),
-    rgba(255, 107, 53, 0.2),
-    rgba(245, 166, 35, 0.3)
+    rgba(124, 251, 92, 0.3),
+    rgba(123, 111, 252, 0.15),
+    rgba(124, 251, 92, 0.05),
+    rgba(123, 111, 252, 0.2),
+    rgba(124, 251, 92, 0.3)
   );
   background-size: 300% 300%;
   animation: gradient-rotate 8s ease infinite;
@@ -62,14 +78,14 @@ body {
 /* Modern input */
 .modern-input {
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--dc-border);
   border-radius: 12px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modern-input:focus {
-  border-color: rgba(245, 166, 35, 0.5);
-  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1), 0 0 20px -5px rgba(245, 166, 35, 0.15);
+  border-color: var(--dc-primary);
+  box-shadow: 0 0 0 3px var(--dc-primary-dim);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -78,36 +94,13 @@ body {
 }
 
 .modern-input.error {
-  border-color: rgba(239, 68, 68, 0.5);
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  border-color: rgba(251, 92, 92, 0.5);
+  box-shadow: 0 0 0 3px rgba(251, 92, 92, 0.1);
 }
 
-/* Modern select */
-.modern-select {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  -webkit-appearance: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23666' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 20px;
-  padding-right: 40px;
-}
-
-.modern-select:focus {
-  border-color: rgba(245, 166, 35, 0.5);
-  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
-  outline: none;
-}
-
-/* Gradient button */
+/* Primary button — Dogechain lime green */
 .btn-gradient {
-  background: linear-gradient(135deg, #f5a623, #f7931a, #ff6b35);
-  background-size: 200% 200%;
-  animation: btn-shimmer 3s ease infinite;
+  background: var(--dc-primary);
   border: none;
   border-radius: 12px;
   font-weight: 700;
@@ -116,27 +109,10 @@ body {
   overflow: hidden;
 }
 
-.btn-gradient::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.15) 50%,
-    transparent 100%
-  );
-  transform: translateX(-100%);
-  transition: transform 0.6s;
-}
-
-.btn-gradient:hover::after {
-  transform: translateX(100%);
-}
-
 .btn-gradient:hover {
+  background: #8dffc0;
   transform: translateY(-1px);
-  box-shadow: 0 10px 40px -10px rgba(245, 166, 35, 0.4);
+  box-shadow: 0 10px 40px -10px rgba(124, 251, 92, 0.35);
 }
 
 .btn-gradient:active {
@@ -148,43 +124,15 @@ body {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+  background: var(--dc-primary);
 }
 
-.btn-gradient:disabled::after {
-  display: none;
-}
-
-@keyframes btn-shimmer {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-/* Pill button */
-.btn-pill {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.btn-pill.active {
-  background: rgba(245, 166, 35, 0.1);
-  border-color: rgba(245, 166, 35, 0.3);
-  color: #f5a623;
-  box-shadow: 0 0 20px -5px rgba(245, 166, 35, 0.2);
-}
-
-/* Glow orb */
+/* Glow orb — green tones */
 .glow-orb {
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: 0.15;
+  opacity: 0.1;
   animation: float 20s ease-in-out infinite;
   pointer-events: none;
 }
@@ -196,7 +144,7 @@ body {
   75% { transform: translate(10px, -10px) scale(1.02); }
 }
 
-/* Progress bar */
+/* Progress bar — lime green */
 .progress-bar {
   height: 6px;
   border-radius: 3px;
@@ -207,7 +155,7 @@ body {
 .progress-bar-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, #f5a623, #ff6b35);
+  background: linear-gradient(90deg, var(--dc-primary), var(--dc-secondary));
   animation: progress-pulse 2s ease-in-out infinite;
 }
 
@@ -233,26 +181,15 @@ body {
   }
 }
 
-/* Status badge */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-/* Shimmer text */
+/* Shimmer text — lime green */
 .shimmer-text {
   background: linear-gradient(
     120deg,
-    rgba(245, 166, 35, 0.9) 0%,
-    rgba(255, 200, 100, 1) 25%,
-    rgba(245, 166, 35, 0.9) 50%,
-    rgba(255, 200, 100, 1) 75%,
-    rgba(245, 166, 35, 0.9) 100%
+    var(--dc-primary) 0%,
+    #a0ffc4 25%,
+    var(--dc-primary) 50%,
+    #a0ffc4 75%,
+    var(--dc-primary) 100%
   );
   background-size: 200% auto;
   -webkit-background-clip: text;
@@ -265,17 +202,10 @@ body {
   to { background-position: 200% center; }
 }
 
-/* Advanced panel */
-.advanced-panel {
-  background: rgba(245, 166, 35, 0.03);
-  border: 1px solid rgba(245, 166, 35, 0.1);
-  border-radius: 12px;
-}
-
-/* Info card */
+/* Info card — Dogechain card style */
 .info-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--dc-bg-card);
+  border: 1px solid var(--dc-border-card);
   border-radius: 16px;
 }
 
@@ -297,8 +227,8 @@ body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Selection */
+/* Selection — lime green */
 ::selection {
-  background: rgba(245, 166, 35, 0.3);
+  background: rgba(124, 251, 92, 0.3);
   color: #fff;
 }
