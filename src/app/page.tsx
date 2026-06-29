@@ -112,17 +112,9 @@ export default function Home() {
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Parse SSE events from buffer
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        let currentEvent = '';
+      // Helper to parse SSE lines from buffer — handles both real-time progress
+      // and post-stream 'complete' events that may be left in the buffer.
+      function parseSSELines(lines: string[], currentEvent: string): string {
         for (const line of lines) {
           if (line.startsWith('event: ')) {
             currentEvent = line.slice(7).trim();
@@ -131,53 +123,31 @@ export default function Home() {
               const data = JSON.parse(line.slice(6));
 
               if (currentEvent === 'progress') {
-                // Calculate estimated percentage based on phase and record count
-                let percent = 0;
                 const phase = data.phase || '';
                 const count = data.recordCount || 0;
                 const msg = data.message || '';
 
+                let percent = 0;
                 if (phase === 'Starting') {
                   percent = 2;
                 } else if (phase === 'Fetching Transactions') {
-                  // Extract page number from message like "Fetching page 23..."
                   const pageMatch = msg.match(/page (\d+)/);
                   const page = pageMatch ? parseInt(pageMatch[1]) : 1;
-                  // Estimate: ~100 records/page, 2 phases, each roughly equal
-                  // Phase 1 (txlist) is roughly 0-45%, Phase 2 (tokentx) is 45-90%
                   percent = Math.min(45, 2 + (page - 1) * 1.5);
-                  setProgress({
-                    phase,
-                    message: `Fetching transactions — page ${page} (${count.toLocaleString()} found)`,
-                    recordCount: count,
-                    page,
-                    percent: Math.round(percent),
-                  });
+                  setProgress({ phase, message: `Fetching transactions — page ${page} (${count.toLocaleString()} found)`, recordCount: count, page, percent: Math.round(percent) });
                   continue;
                 } else if (phase === 'Fetching Token Transfers') {
                   const pageMatch = msg.match(/page (\d+)/);
                   const page = pageMatch ? parseInt(pageMatch[1]) : 1;
                   percent = 45 + Math.min(45, (page - 1) * 1.5);
-                  setProgress({
-                    phase,
-                    message: `Fetching token transfers — page ${page} (${count.toLocaleString()} found)`,
-                    recordCount: count,
-                    page,
-                    percent: Math.round(percent),
-                  });
+                  setProgress({ phase, message: `Fetching token transfers — page ${page} (${count.toLocaleString()} found)`, recordCount: count, page, percent: Math.round(percent) });
                   continue;
                 } else if (phase === 'Complete') {
                   percent = 92;
                 }
 
-                if (currentEvent !== 'progress' || !phase.includes('Fetching')) {
-                  setProgress((prev) => ({
-                    ...prev,
-                    phase,
-                    message: data.message || prev.message,
-                    recordCount: count,
-                    percent: Math.round(Math.max(prev.percent, percent)),
-                  }));
+                if (!phase.includes('Fetching')) {
+                  setProgress((prev) => ({ ...prev, phase, message: data.message || prev.message, recordCount: count, percent: Math.round(Math.max(prev.percent, percent)) }));
                 }
               } else if (currentEvent === 'complete') {
                 setProgress((prev) => ({
@@ -188,7 +158,6 @@ export default function Home() {
                   percent: 100,
                 }));
 
-                // Decode CSV and trigger download
                 const csv = atob(data.csvBase64);
                 const blob = new Blob([csv], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);
@@ -208,6 +177,27 @@ export default function Home() {
             }
           }
         }
+        return currentEvent;
+      }
+
+      // Read the full stream
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse complete lines in real-time for progress updates
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        parseSSELines(lines, '');
+      }
+
+      // CRITICAL: Parse any remaining buffered content (the 'complete' event
+      // with its huge base64 payload often lands in the buffer after stream ends)
+      if (buffer.trim()) {
+        const remainingLines = buffer.split('\n');
+        parseSSELines(remainingLines, '');
       }
 
       if (status !== 'done') {
