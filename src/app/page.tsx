@@ -111,18 +111,19 @@ export default function Home() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let lastEvent = '';  // Persists across chunk boundaries
 
       // Helper to parse SSE lines from buffer — handles both real-time progress
       // and post-stream 'complete' events that may be left in the buffer.
-      function parseSSELines(lines: string[], currentEvent: string): string {
+      function parseSSELines(lines: string[]): void {
         for (const line of lines) {
           if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7).trim();
+            lastEvent = line.slice(7).trim();
           } else if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
 
-              if (currentEvent === 'progress') {
+              if (lastEvent === 'progress') {
                 const phase = data.phase || '';
                 const count = data.recordCount || 0;
                 const msg = data.message || '';
@@ -149,7 +150,7 @@ export default function Home() {
                 if (!phase.includes('Fetching')) {
                   setProgress((prev) => ({ ...prev, phase, message: data.message || prev.message, recordCount: count, percent: Math.round(Math.max(prev.percent, percent)) }));
                 }
-              } else if (currentEvent === 'complete') {
+              } else if (lastEvent === 'complete') {
                 setProgress((prev) => ({
                   ...prev,
                   phase: 'Done',
@@ -169,7 +170,7 @@ export default function Home() {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 setStatus('done');
-              } else if (currentEvent === 'error') {
+              } else if (lastEvent === 'error') {
                 throw new Error(data.message || 'Export failed');
               }
             } catch (parseErr) {
@@ -177,7 +178,6 @@ export default function Home() {
             }
           }
         }
-        return currentEvent;
       }
 
       // Read the full stream
@@ -190,14 +190,14 @@ export default function Home() {
         // Parse complete lines in real-time for progress updates
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
-        parseSSELines(lines, '');
+        parseSSELines(lines);
       }
 
       // CRITICAL: Parse any remaining buffered content (the 'complete' event
       // with its huge base64 payload often lands in the buffer after stream ends)
       if (buffer.trim()) {
         const remainingLines = buffer.split('\n');
-        parseSSELines(remainingLines, '');
+        parseSSELines(remainingLines);
       }
 
       if (status !== 'done') {
