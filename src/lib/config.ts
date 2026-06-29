@@ -25,7 +25,7 @@ export const LOG_BLOCK_CHUNK_SIZE = 900; // blocks per eth_getLogs call (thirdwe
 export const MAX_BLOCKS_TO_SCAN_NATIVE = 10000; // practical limit for native tx scanning
 export const MAX_BLOCK_BATCH_SIZE = 100; // blocks per eth_getBlockByNumber call
 export const API_TIMEOUT_MS = 30000;
-export const API_RATE_LIMIT_MS = 50; // ms between RPC calls (reduced from 200 — RPCs handle fast)
+export const API_RATE_LIMIT_MS = 0; // no throttle — parallel batch calls manage their own concurrency
 
 // CSV columns
 export const CSV_COLUMNS = [

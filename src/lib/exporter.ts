@@ -122,8 +122,8 @@ async function fetchTokenDirection(
       ? [TRANSFER_EVENT_TOPIC, walletTopic, null]
       : [TRANSFER_EVENT_TOPIC, null, walletTopic];
 
-  // Process chunks in parallel batches of 20
-  const BATCH_SIZE = 20;
+  // Process chunks in parallel batches of 50
+  const BATCH_SIZE = 50;
 
   while (currentBlock <= endBlock) {
     const batchPromises: Promise<void>[] = [];
