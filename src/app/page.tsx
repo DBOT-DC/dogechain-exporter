@@ -1,8 +1,17 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 type ExportStatus = 'idle' | 'exporting' | 'done' | 'error';
+
+interface ProgressState {
+  phase: string;
+  message: string;
+  recordCount: number;
+  page: number;
+  totalPages?: number;
+  percent: number;
+}
 
 function IconDownload({ className = 'w-4 h-4' }: { className?: string }) {
   return (
@@ -60,20 +69,21 @@ function IconSpinner({ className = 'w-4 h-4 animate-spin' }: { className?: strin
   );
 }
 
-function IconClock({ className = 'w-4 h-4' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-  );
-}
+const INITIAL_PROGRESS: ProgressState = {
+  phase: '',
+  message: '',
+  recordCount: 0,
+  page: 0,
+  totalPages: undefined,
+  percent: 0,
+};
 
 export default function Home() {
   const [address, setAddress] = useState('');
   const [status, setStatus] = useState<ExportStatus>('idle');
-  const [progress, setProgress] = useState('');
-  const [recordCount, setRecordCount] = useState(0);
+  const [progress, setProgress] = useState<ProgressState>(INITIAL_PROGRESS);
   const [error, setError] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
 
   const isValid = /^0x[0-9a-fA-F]{40}$/.test(address);
 
@@ -81,33 +91,135 @@ export default function Home() {
     if (!isValid) return;
     setStatus('exporting');
     setError('');
-    setProgress('Connecting to Dogechain Explorer API...');
-    setRecordCount(0);
+    setProgress({ ...INITIAL_PROGRESS, phase: 'Starting', message: 'Connecting...' });
+
+    const abort = new AbortController();
+    abortRef.current = abort;
 
     try {
-      setProgress('Fetching complete transaction history...');
-      const response = await fetch(`/api/export?address=${address.toLowerCase()}`);
+      const response = await fetch(`/api/export?address=${address.toLowerCase()}`, {
+        signal: abort.signal,
+      });
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || `HTTP ${response.status}`);
       }
-      const count = response.headers.get('X-Record-Count');
-      setRecordCount(parseInt(count || '0'));
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dogechain-export-${address.slice(0, 10)}-${Date.now()}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      setStatus('done');
-      setProgress(`Download complete — ${count || 0} transactions exported.`);
+
+      if (!response.body) throw new Error('No response stream');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE events from buffer
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let currentEvent = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (currentEvent === 'progress') {
+                // Calculate estimated percentage based on phase and record count
+                let percent = 0;
+                const phase = data.phase || '';
+                const count = data.recordCount || 0;
+                const msg = data.message || '';
+
+                if (phase === 'Starting') {
+                  percent = 2;
+                } else if (phase === 'Fetching Transactions') {
+                  // Extract page number from message like "Fetching page 23..."
+                  const pageMatch = msg.match(/page (\d+)/);
+                  const page = pageMatch ? parseInt(pageMatch[1]) : 1;
+                  // Estimate: ~100 records/page, 2 phases, each roughly equal
+                  // Phase 1 (txlist) is roughly 0-45%, Phase 2 (tokentx) is 45-90%
+                  percent = Math.min(45, 2 + (page - 1) * 1.5);
+                  setProgress({
+                    phase,
+                    message: `Fetching transactions — page ${page} (${count.toLocaleString()} found)`,
+                    recordCount: count,
+                    page,
+                    percent: Math.round(percent),
+                  });
+                  continue;
+                } else if (phase === 'Fetching Token Transfers') {
+                  const pageMatch = msg.match(/page (\d+)/);
+                  const page = pageMatch ? parseInt(pageMatch[1]) : 1;
+                  percent = 45 + Math.min(45, (page - 1) * 1.5);
+                  setProgress({
+                    phase,
+                    message: `Fetching token transfers — page ${page} (${count.toLocaleString()} found)`,
+                    recordCount: count,
+                    page,
+                    percent: Math.round(percent),
+                  });
+                  continue;
+                } else if (phase === 'Complete') {
+                  percent = 92;
+                }
+
+                if (currentEvent !== 'progress' || !phase.includes('Fetching')) {
+                  setProgress((prev) => ({
+                    ...prev,
+                    phase,
+                    message: data.message || prev.message,
+                    recordCount: count,
+                    percent: Math.round(Math.max(prev.percent, percent)),
+                  }));
+                }
+              } else if (currentEvent === 'complete') {
+                setProgress((prev) => ({
+                  ...prev,
+                  phase: 'Done',
+                  message: `Download complete — ${(data.recordCount || 0).toLocaleString()} transactions exported.`,
+                  recordCount: data.recordCount || 0,
+                  percent: 100,
+                }));
+
+                // Decode CSV and trigger download
+                const csv = atob(data.csvBase64);
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dogechain-export-${address.slice(0, 10)}-${Date.now()}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                setStatus('done');
+              } else if (currentEvent === 'error') {
+                throw new Error(data.message || 'Export failed');
+              }
+            } catch (parseErr) {
+              if (!(parseErr instanceof SyntaxError)) throw parseErr;
+            }
+          }
+        }
+      }
+
+      if (status !== 'done') {
+        setStatus('done');
+      }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setStatus('error');
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      setProgress('');
+      setProgress(INITIAL_PROGRESS);
+    } finally {
+      abortRef.current = null;
     }
   }, [address, isValid]);
 
@@ -115,10 +227,10 @@ export default function Home() {
     <main className="mx-auto max-w-xl px-5 py-16 sm:py-24 fade-in">
       {/* Header */}
       <div className="mb-12 text-center">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#7cfb5c]/20 bg-[#7cfb5c]/5 px-4 py-1.5 text-xs font-medium text-[#7cfb5c]/80">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#7b6ffc]/20 bg-[#7b6ffc]/5 px-4 py-1.5 text-xs font-medium text-[#7b6ffc]/90">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#7cfb5c] opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#7cfb5c]" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#7b6ffc] opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#7b6ffc]" />
           </span>
           Dogechain shutting down ~Aug 7 — export now
         </div>
@@ -164,11 +276,12 @@ export default function Home() {
         <button
           onClick={handleExport}
           disabled={!isValid || status === 'exporting'}
-          className="btn-gradient w-full flex items-center justify-center gap-2 px-6 py-4 text-base text-gray-900"        >
+          className="btn-gradient w-full flex items-center justify-center gap-2 px-6 py-4 text-base text-white"
+        >
           {status === 'exporting' ? (
             <>
               <IconSpinner />
-              Exporting Full History...
+              Exporting...
             </>
           ) : status === 'done' ? (
             <>
@@ -182,41 +295,43 @@ export default function Home() {
             </>
           )}
         </button>
-
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-[#82899a]">
-          <IconClock className="w-3.5 h-3.5" />
-          All transactions from genesis — no range needed
-        </p>
       </div>
 
-      {/* Status Messages */}
-      {(progress || error) && (
-        <div
-          className={`mt-5 rounded-xl border p-4 text-sm fade-in ${
-            error
-              ? 'border-[#fb5c5c]/20 bg-[#fb5c5c]/5 text-[#fb5c5c]'
-              : status === 'done'
-                ? 'border-[#7cfb5c]/20 bg-[#7cfb5c]/5 text-[#7cfb5c]'
-                : 'border-white/5 bg-white/[0.02] text-white/70'
-          }`}
-        >
-          {error && <p>{error}</p>}
-          {progress && !error && <p>{progress}</p>}
-          {recordCount > 0 && !error && (
-            <p className="mt-1 text-xs opacity-60">
-              {recordCount} transaction{recordCount !== 1 ? 's' : ''} found
+      {/* Progress Section */}
+      {status === 'exporting' && progress.percent > 0 && (
+        <div className="mt-5 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm fade-in">
+          <div className="flex items-center justify-between text-white/70">
+            <span>{progress.message}</span>
+            <span className="ml-3 flex-shrink-0 text-xs font-medium text-[#7b6ffc]">
+              {progress.percent}%
+            </span>
+          </div>
+          <div className="mt-3">
+            <div className="progress-bar">
+              <div
+                className="progress-bar-fill"
+                style={{ width: `${progress.percent}%` }}
+              />
+            </div>
+          </div>
+          {progress.recordCount > 0 && (
+            <p className="mt-2 text-xs text-[#82899a]">
+              {progress.recordCount.toLocaleString()} transactions found so far
             </p>
           )}
-          {status === 'exporting' && (
-            <div className="mt-3">
-              <div className="progress-bar">
-                <div className="progress-bar-fill" />
-              </div>
-              <p className="mt-2 text-xs text-[#82899a]">
-                Fetching from Dogechain Explorer API...
-              </p>
-            </div>
-          )}
+        </div>
+      )}
+
+      {/* Status Messages */}
+      {status === 'done' && (
+        <div className="mt-5 rounded-xl border border-[#7b6ffc]/20 bg-[#7b6ffc]/5 p-4 text-sm text-[#7b6ffc] fade-in">
+          <p>{progress.message}</p>
+        </div>
+      )}
+
+      {status === 'error' && error && (
+        <div className="mt-5 rounded-xl border border-[#fb5c5c]/20 bg-[#fb5c5c]/5 p-4 text-sm text-[#fb5c5c] fade-in">
+          <p>{error}</p>
         </div>
       )}
 
@@ -247,7 +362,7 @@ export default function Home() {
             },
           ].map(({ icon, title, desc }) => (
             <div key={title} className="rounded-lg bg-white/[0.03] p-3.5">
-              <div className="mb-1.5 text-[#7cfb5c]/80">{icon}</div>
+              <div className="mb-1.5 text-[#7b6ffc]">{icon}</div>
               <h3 className="mb-1 text-sm font-medium text-white">{title}</h3>
               <p className="text-xs leading-relaxed text-[#82899a]">{desc}</p>
             </div>
@@ -263,10 +378,31 @@ export default function Home() {
             href="https://github.com/DBOT-DC/dogechain-exporter"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#82899a] transition-colors hover:text-[#7cfb5c]"
+            className="text-[#82899a] transition-colors hover:text-[#7b6ffc]"
           >
             GitHub
           </a>
+        </p>
+        <p className="mt-1.5 text-xs text-[#82899a]">
+          Made by{' '}
+          <a
+            href="https://dbot.dog"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-[#7b6ffc] transition-colors hover:text-[#9d8ffc]"
+          >
+            DBOT
+          </a>{' '}
+          •{' '}
+          <a
+            href="https://github.com/DBOT-DC"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#82899a] transition-colors hover:text-[#7b6ffc]"
+          >
+            DBOT-DC
+          </a>{' '}
+          on GitHub
         </p>
       </footer>
     </main>

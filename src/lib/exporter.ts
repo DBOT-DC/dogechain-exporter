@@ -13,7 +13,7 @@ export interface ExportProgress {
   recordCount: number;
 }
 
-type ProgressCallback = (progress: ExportProgress) => void;
+export type ProgressCallback = (progress: ExportProgress) => void;
 
 interface BlockscoutTx {
   hash: string;

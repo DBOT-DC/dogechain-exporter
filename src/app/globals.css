@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
-/* Dogechain Brand Theme — matching dogechain.dog */
+/* Dogechain Brand Theme — purple primary */
 :root {
   --dc-bg: #000000;
   --dc-bg-card: #1f2226;
   --dc-bg-card-hover: #272b30;
-  --dc-primary: #7cfb5c;
-  --dc-primary-dim: rgba(124, 251, 92, 0.15);
-  --dc-secondary: #7b6ffc;
+  --dc-primary: #7b6ffc;
+  --dc-primary-bright: #9d8ffc;
+  --dc-primary-dim: rgba(123, 111, 252, 0.15);
+  --dc-secondary: #7cfb5c;
   --dc-yellow: #fbf55c;
   --dc-error: #fb5c5c;
   --dc-text: #ffffff;
@@ -23,27 +24,27 @@ body {
   overflow-x: hidden;
 }
 
-/* Gradient mesh background — lime/green tones matching Dogechain */
+/* Gradient mesh background — purple tones */
 .bg-mesh {
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(124, 251, 92, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(123, 111, 252, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, rgba(124, 251, 92, 0.02) 0%, transparent 50%),
-    linear-gradient(180deg, #000 0%, #0a0c0a 50%, #000 100%);
+    radial-gradient(ellipse at 20% 50%, rgba(123, 111, 252, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(124, 251, 92, 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(123, 111, 252, 0.03) 0%, transparent 50%),
+    linear-gradient(180deg, #000 0%, #05050a 50%, #000 100%);
 }
 
-/* Glass card — using Dogechain card background */
+/* Glass card */
 .glass-card {
   background: var(--dc-bg-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--dc-border-card);
   box-shadow:
-    0 0 0 1px rgba(124, 251, 92, 0.03),
+    0 0 0 1px rgba(123, 111, 252, 0.03),
     0 20px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* Animated gradient border — lime green */
+/* Animated gradient border — purple */
 .gradient-border {
   position: relative;
 }
@@ -56,11 +57,11 @@ body {
   padding: 1px;
   background: linear-gradient(
     135deg,
-    rgba(124, 251, 92, 0.3),
-    rgba(123, 111, 252, 0.15),
-    rgba(124, 251, 92, 0.05),
-    rgba(123, 111, 252, 0.2),
-    rgba(124, 251, 92, 0.3)
+    rgba(123, 111, 252, 0.35),
+    rgba(124, 251, 92, 0.1),
+    rgba(123, 111, 252, 0.05),
+    rgba(124, 251, 92, 0.15),
+    rgba(123, 111, 252, 0.35)
   );
   background-size: 300% 300%;
   animation: gradient-rotate 8s ease infinite;
@@ -98,7 +99,7 @@ body {
   box-shadow: 0 0 0 3px rgba(251, 92, 92, 0.1);
 }
 
-/* Primary button — Dogechain lime green */
+/* Primary button — Dogechain purple */
 .btn-gradient {
   background: var(--dc-primary);
   border: none;
@@ -110,9 +111,9 @@ body {
 }
 
 .btn-gradient:hover {
-  background: #8dffc0;
+  background: var(--dc-primary-bright);
   transform: translateY(-1px);
-  box-shadow: 0 10px 40px -10px rgba(124, 251, 92, 0.35);
+  box-shadow: 0 10px 40px -10px rgba(123, 111, 252, 0.35);
 }
 
 .btn-gradient:active {
@@ -127,7 +128,7 @@ body {
   background: var(--dc-primary);
 }
 
-/* Glow orb — green tones */
+/* Glow orb */
 .glow-orb {
   position: absolute;
   border-radius: 50%;
@@ -144,7 +145,7 @@ body {
   75% { transform: translate(10px, -10px) scale(1.02); }
 }
 
-/* Progress bar — lime green */
+/* Progress bar — purple */
 .progress-bar {
   height: 6px;
   border-radius: 3px;
@@ -155,14 +156,9 @@ body {
 .progress-bar-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, var(--dc-primary), var(--dc-secondary));
-  animation: progress-pulse 2s ease-in-out infinite;
-}
-
-@keyframes progress-pulse {
-  0% { width: 15%; opacity: 0.7; }
-  50% { width: 85%; opacity: 1; }
-  100% { width: 15%; opacity: 0.7; }
+  background: var(--dc-primary);
+  transition: width 0.4s ease;
+  width: 0%;
 }
 
 /* Fade in animation */
@@ -181,14 +177,14 @@ body {
   }
 }
 
-/* Shimmer text — lime green */
+/* Shimmer text — purple */
 .shimmer-text {
   background: linear-gradient(
     120deg,
     var(--dc-primary) 0%,
-    #a0ffc4 25%,
+    #b8a9ff 25%,
     var(--dc-primary) 50%,
-    #a0ffc4 75%,
+    #b8a9ff 75%,
     var(--dc-primary) 100%
   );
   background-size: 200% auto;
@@ -202,7 +198,7 @@ body {
   to { background-position: 200% center; }
 }
 
-/* Info card — Dogechain card style */
+/* Info card */
 .info-card {
   background: var(--dc-bg-card);
   border: 1px solid var(--dc-border-card);
@@ -227,8 +223,8 @@ body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Selection — lime green */
+/* Selection — purple */
 ::selection {
-  background: rgba(124, 251, 92, 0.3);
+  background: rgba(123, 111, 252, 0.3);
   color: #fff;
 }
