@@ -4,10 +4,12 @@ export const DOGECHAIN_NATIVE_SYMBOL = 'DOGE';
 export const DOGECHAIN_NATIVE_DECIMALS = 18;
 
 // RPC endpoints (failover order)
+// NOTE: thirdweb has ~1000 block limit per eth_getLogs
+//       rpc.dogechain.dog has ~5000 block limit per eth_getLogs
+//       ankr requires API key — removed
 export const RPC_ENDPOINTS = [
-  'https://dogechain.rpc.thirdweb.com',
   'https://rpc.dogechain.dog',
-  'https://rpc.ankr.com/dogechain',
+  'https://dogechain.rpc.thirdweb.com',
 ] as const;
 
 // ERC20 Transfer event signature
@@ -18,7 +20,8 @@ export const TRANSFER_EVENT_TOPIC =
 export const EXPLORER_URL = 'https://explorer.dogechain.dog';
 
 // Limits
-export const MAX_LOGS_PER_BATCH = 1000; // eth_getLogs max
+export const MAX_LOGS_PER_BATCH = 1000; // eth_getLogs max response entries
+export const LOG_BLOCK_CHUNK_SIZE = 900; // blocks per eth_getLogs call (thirdweb limit ~1000)
 export const MAX_BLOCKS_TO_SCAN_NATIVE = 10000; // practical limit for native tx scanning
 export const MAX_BLOCK_BATCH_SIZE = 100; // blocks per eth_getBlockByNumber call
 export const API_TIMEOUT_MS = 30000;

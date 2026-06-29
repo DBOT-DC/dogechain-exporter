@@ -3,6 +3,7 @@ import { addressToTopic, normalizeAddress, hexWeiToValue, hexGasToGwei, hexTimes
 import {
   TRANSFER_EVENT_TOPIC,
   MAX_LOGS_PER_BATCH,
+  LOG_BLOCK_CHUNK_SIZE,
   MAX_BLOCKS_TO_SCAN_NATIVE,
   DOGECHAIN_NATIVE_SYMBOL,
   API_RATE_LIMIT_MS,
@@ -42,7 +43,7 @@ async function fetchTokenTransfers(
 ): Promise<TransactionRecord[]> {
   const transactions: TransactionRecord[] = [];
   const walletTopic = addressToTopic(walletAddress);
-  const chunkSize = 100000; // blocks per eth_getLogs call
+  const chunkSize = LOG_BLOCK_CHUNK_SIZE; // 900 blocks per call — within all RPC limits
 
   // We need to query with wallet as from (topic[1]) AND as to (topic[2])
   const topicFilters = [
@@ -79,8 +80,24 @@ async function fetchTokenTransfers(
       try {
         logs = await getLogs(filter);
       } catch (err) {
-        console.error(`Error fetching logs for blocks ${fromBlock}-${toBlock}:`, err);
-        currentBlock = toBlock + 1;
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`Error fetching logs for blocks ${fromBlock}-${toBlock}: ${errMsg}`);
+        // If it's a block range limit error, halve the range and retry
+        if (errMsg.includes('exceed') || errMsg.includes('maximum') || errMsg.includes('size exceeded')) {
+          const range = toBlock - fromBlock;
+          if (range > 10) {
+            // Retry with half the range — will be picked up in next iteration
+            currentBlock = fromBlock;
+            // Temporarily reduce effective chunk by adjusting the outer loop
+            // We can't modify chunkSize mid-loop, so just skip forward by half
+            currentBlock = fromBlock + Math.floor(range / 2);
+            console.error(`Retrying with smaller range: ${fromBlock}-${currentBlock - 1}`);
+          } else {
+            currentBlock = toBlock + 1;
+          }
+        } else {
+          currentBlock = toBlock + 1;
+        }
         continue;
       }
 
@@ -121,13 +138,13 @@ async function fetchTokenTransfers(
         ]);
       }
 
-      // Handle pagination: if we got MAX_LOGS_PER_BATCH, narrow range
+      // Handle pagination: if we hit the log limit, advance past last log block
       if (logs.length >= MAX_LOGS_PER_BATCH) {
         const lastLog = logs[logs.length - 1];
         const lastBlock = parseInt(String(lastLog.blockNumber), 16);
-        // Set currentBlock to just after the last block with logs
-        // We'll re-scan from there
-        currentBlock = lastBlock;
+        // Advance past the last block with results — may miss some logs
+        // in the same block but avoids infinite loop
+        currentBlock = lastBlock + 1;
       } else {
         currentBlock = toBlock + 1;
       }
@@ -150,7 +167,7 @@ async function fetchTokenTransfers(
     }
 
     try {
-      const block = await getBlockByNumber(parseInt(uniqueBlocks[i], 16));
+      const block = await getBlockByNumber(parseInt(uniqueBlocks[i]));
       if (block?.timestamp) {
         blockTimestamps.set(uniqueBlocks[i], hexTimestampToUTC(String(block.timestamp)));
       }

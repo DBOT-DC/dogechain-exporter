@@ -30,6 +30,7 @@ export function addressToTopic(address: string): string {
  * @returns formatted number string
  */
 export function hexWeiToValue(hexWei: string, decimals: number = 18): string {
+  if (!hexWei || hexWei === '0x' || hexWei === '0x0') return '0';
   const wei = BigInt(hexWei);
   const divisor = BigInt(10 ** decimals);
   const wholePart = wei / divisor;
