@@ -2,42 +2,91 @@
 
 import { useState, useCallback } from 'react';
 
-type ExportMode = 'token' | 'native' | 'all';
-type ExportStatus = 'idle' | 'validating' | 'exporting' | 'done' | 'error';
+type ExportStatus = 'idle' | 'exporting' | 'done' | 'error';
+
+function IconDownload({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+  );
+}
+
+function IconCheck({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+  );
+}
+
+function IconBroadcast({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z" />
+    </svg>
+  );
+}
+
+function IconCoins({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125v-3.75m16.5 3.75v3.75c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125v-3.75" />
+    </svg>
+  );
+}
+
+function IconDocument({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+    </svg>
+  );
+}
+
+function IconBolt({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+    </svg>
+  );
+}
+
+function IconSpinner({ className = 'w-4 h-4 animate-spin' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+    </svg>
+  );
+}
+
+function IconClock({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+  );
+}
 
 export default function Home() {
   const [address, setAddress] = useState('');
-  const [tokenAddress, setTokenAddress] = useState('');
-  const [mode, setMode] = useState<ExportMode>('token');
-  const [maxBlocks, setMaxBlocks] = useState('1000000');
   const [status, setStatus] = useState<ExportStatus>('idle');
   const [progress, setProgress] = useState('');
   const [recordCount, setRecordCount] = useState(0);
   const [error, setError] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isValid = /^0x[0-9a-fA-F]{40}$/.test(address);
-  const isTokenValid = tokenAddress === '' || /^0x[0-9a-fA-F]{40}$/.test(tokenAddress);
-  const isAdvanced = mode === 'native' || mode === 'all';
 
   const handleExport = useCallback(async () => {
-    if (!isValid || !isTokenValid) return;
+    if (!isValid) return;
     setStatus('exporting');
     setError('');
-    setProgress('Connecting to Dogechain RPC...');
+    setProgress('Connecting to Dogechain Explorer API...');
     setRecordCount(0);
 
     try {
-      const params = new URLSearchParams({
-        address: address.toLowerCase(),
-        mode,
-        max: maxBlocks,
-      });
-      if (tokenAddress && mode === 'token') {
-        params.set('token', tokenAddress.toLowerCase());
-      }
-      setProgress('Fetching blockchain data...');
-      const response = await fetch(`/api/export?${params.toString()}`);
+      setProgress('Fetching complete transaction history...');
+      const response = await fetch(`/api/export?address=${address.toLowerCase()}`);
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || `HTTP ${response.status}`);
@@ -60,14 +109,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setProgress('');
     }
-  }, [address, tokenAddress, mode, maxBlocks, isValid, isTokenValid]);
-
-  const handleReset = () => {
-    setStatus('idle');
-    setProgress('');
-    setRecordCount(0);
-    setError('');
-  };
+  }, [address, isValid]);
 
   return (
     <main className="mx-auto max-w-xl px-5 py-16 sm:py-24 fade-in">
@@ -85,8 +127,8 @@ export default function Home() {
           <span className="text-white">Data Exporter</span>
         </h1>
         <p className="mx-auto max-w-md text-sm leading-relaxed text-gray-400">
-          Export your wallet&apos;s ERC20 token transfers to CSV.
-          No sign-up, no API keys, no limits.
+          Export your wallet&apos;s complete transaction history to CSV.
+          All data, from genesis to current block. No sign-up, no limits.
         </p>
       </div>
 
@@ -96,7 +138,7 @@ export default function Home() {
         <div className="mb-5">
           <label
             htmlFor="address"
-            className="mb-2 block text-sm font-medium text-gray-300"
+            className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-300"
           >
             Wallet Address
           </label>
@@ -104,10 +146,7 @@ export default function Home() {
             id="address"
             type="text"
             value={address}
-            onChange={(e) => {
-              setAddress(e.target.value);
-              if (status !== 'idle') handleReset();
-            }}
+            onChange={(e) => setAddress(e.target.value)}
             placeholder="0x..."
             className={`modern-input w-full px-4 py-3.5 font-mono text-sm text-white ${
               address && !isValid ? 'error' : ''
@@ -121,106 +160,34 @@ export default function Home() {
           )}
         </div>
 
-        {/* Token Address */}
-        <div className="mb-6">
-          <label
-            htmlFor="token"
-            className="mb-2 block text-sm font-medium text-gray-300"
-          >
-            Token Contract{' '}
-            <span className="text-gray-500 font-normal">(optional — blank for all)</span>
-          </label>
-          <input
-            id="token"
-            type="text"
-            value={tokenAddress}
-            onChange={(e) => setTokenAddress(e.target.value)}
-            placeholder="0x... leave blank for all tokens"
-            className={`modern-input w-full px-4 py-3.5 font-mono text-sm text-white ${
-              tokenAddress && !isTokenValid ? 'error' : ''
-            }`}
-            disabled={status === 'exporting'}
-          />
-          {tokenAddress && !isTokenValid && (
-            <p className="mt-1.5 text-xs text-red-400/90">Invalid contract address</p>
-          )}
-        </div>
-
-        {/* Block Range */}
-        <div className="mb-6">
-          <label
-            htmlFor="maxBlocks"
-            className="mb-2 block text-sm font-medium text-gray-300"
-          >
-            Block Range
-          </label>
-          <select
-            id="maxBlocks"
-            value={maxBlocks}
-            onChange={(e) => setMaxBlocks(e.target.value)}
-            disabled={status === 'exporting'}
-            className="modern-select w-full px-4 py-3.5 text-sm text-white"
-          >
-            <option value="100">Last 100 blocks (recent)</option>
-            <option value="1000">Last 1,000 blocks</option>
-            <option value="10000">Last 10,000 blocks</option>
-            <option value="100000">Last 100,000 blocks</option>
-            <option value="1000000">Last 1,000,000 blocks</option>
-            <option value="0">All Time (from genesis)</option>
-          </select>
-        </div>
-
         {/* Export Button */}
         <button
           onClick={handleExport}
-          disabled={!isValid || !isTokenValid || status === 'exporting'}
-          className="btn-gradient w-full px-6 py-4 text-base text-gray-900"
+          disabled={!isValid || status === 'exporting'}
+          className="btn-gradient w-full flex items-center justify-center gap-2 px-6 py-4 text-base text-gray-900"
         >
-          {status === 'exporting'
-            ? '⏳ Exporting...'
-            : status === 'done'
-              ? '✅ Downloaded — Export Again?'
-              : '📥 Export ERC20 Transfers'}
+          {status === 'exporting' ? (
+            <>
+              <IconSpinner />
+              Exporting Full History...
+            </>
+          ) : status === 'done' ? (
+            <>
+              <IconCheck />
+              Downloaded — Export Again?
+            </>
+          ) : (
+            <>
+              <IconDownload />
+              Full Export
+            </>
+          )}
         </button>
 
-        {/* Advanced Toggle */}
-        <button
-          onClick={() => {
-            setShowAdvanced(!showAdvanced);
-            if (showAdvanced && isAdvanced) setMode('token');
-          }}
-          className="mt-5 w-full text-center text-xs text-gray-500 transition-colors hover:text-gray-400"
-        >
-          {showAdvanced ? '▲ Hide advanced options' : '▼ Advanced: Native DOGE scanning'}
-        </button>
-
-        {/* Advanced Panel */}
-        {showAdvanced && (
-          <div className="advanced-panel mt-4 p-4">
-            <div className="mb-3 flex items-start gap-2">
-              <span className="mt-0.5 text-yellow-400">⚠️</span>
-              <p className="text-xs leading-relaxed text-yellow-400/80">
-                Native DOGE scans blocks one-by-one via RPC.
-                <strong className="text-yellow-400"> 100 blocks ≈ 20 seconds.</strong>{' '}
-                Keep ranges small.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {(['native', 'all'] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  disabled={status === 'exporting'}
-                  className={`btn-pill flex-1 px-3 py-2.5 text-xs font-medium ${
-                    mode === m ? 'active' : 'text-gray-400'
-                  } disabled:opacity-40`}
-                >
-                  {m === 'native' ? 'Native DOGE Only' : 'All (Tokens + DOGE)'}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+          <IconClock className="w-3.5 h-3.5" />
+          All transactions from genesis — no range needed
+        </p>
       </div>
 
       {/* Status Messages */}
@@ -234,10 +201,12 @@ export default function Home() {
                 : 'border-white/5 bg-white/[0.02] text-gray-300'
           }`}
         >
-          {error && <p>❌ {error}</p>}
+          {error && <p>{error}</p>}
           {progress && !error && <p>{progress}</p>}
           {recordCount > 0 && !error && (
-            <p className="mt-1 text-xs opacity-60">{recordCount} transaction{recordCount !== 1 ? 's' : ''} found</p>
+            <p className="mt-1 text-xs opacity-60">
+              {recordCount} transaction{recordCount !== 1 ? 's' : ''} found
+            </p>
           )}
           {status === 'exporting' && (
             <div className="mt-3">
@@ -245,9 +214,7 @@ export default function Home() {
                 <div className="progress-bar-fill" />
               </div>
               <p className="mt-2 text-xs text-gray-500">
-                {isAdvanced
-                  ? 'Scanning blocks via RPC — this will take a while.'
-                  : 'Fetching transfer logs via RPC...'}
+                Fetching from Dogechain Explorer API...
               </p>
             </div>
           )}
@@ -260,28 +227,28 @@ export default function Home() {
         <div className="grid gap-4 sm:grid-cols-2">
           {[
             {
-              icon: '📡',
-              title: 'RPC Direct',
-              desc: 'Queries Dogechain nodes directly. No API keys, no middlemen.',
+              icon: <IconBroadcast />,
+              title: 'Explorer API',
+              desc: 'Queries the Dogechain Blockscout explorer. Indexed data — no raw RPC scanning.',
             },
             {
-              icon: '🪙',
-              title: 'ERC20 Logs',
-              desc: 'Indexed Transfer events via eth_getLogs. 100K blocks in ~1 second.',
+              icon: <IconCoins />,
+              title: 'Full History',
+              desc: 'Every transaction from genesis to current block. All 60M+ blocks covered.',
             },
             {
-              icon: '📄',
+              icon: <IconDocument />,
               title: 'Clean CSV',
               desc: '13 columns: hash, block, time, type, from, to, token, amount, gas, status.',
             },
             {
-              icon: '⚡',
-              title: 'Instant Download',
-              desc: 'Generated server-side, streamed to your browser. No data stored.',
+              icon: <IconBolt />,
+              title: 'Fast Download',
+              desc: 'Indexed data returns in seconds, not minutes. Generated server-side.',
             },
           ].map(({ icon, title, desc }) => (
             <div key={title} className="rounded-lg bg-white/[0.02] p-3.5">
-              <div className="mb-1.5 text-lg">{icon}</div>
+              <div className="mb-1.5 text-amber-400/80">{icon}</div>
               <h3 className="mb-1 text-sm font-medium text-gray-200">{title}</h3>
               <p className="text-xs leading-relaxed text-gray-500">{desc}</p>
             </div>
