@@ -4,41 +4,41 @@ Free, open-source tool to export your Dogechain wallet transaction history to CS
 
 > ⚠️ **Dogechain is shutting down ~August 7, 2026. Export your data before then!**
 
+**Live:** [dogechain-exporter.vercel.app](https://dogechain-exporter.vercel.app)
+
 ## Features
 
-- **ERC20 Token Transfers** — Fetches via `eth_getLogs` for fast, scalable token transfer history
-- **Native DOGE Transfers** — Scans blocks to find wallet's native transactions
-- **CSV Export** — Download complete transaction history with timestamps, values, gas, addresses
-- **No API Key Required** — Uses public Dogechain RPC endpoints with automatic failover
+- **Complete History** — Every transaction from genesis to current block, fetched via the Blockscout Explorer API
+- **Token Transfers** — ERC-20 token sends, receives, and approvals with full metadata (symbol, decimals)
+- **Single Click** — Paste your address, hit Full Export. No settings, no ranges, no options to configure
+- **Real-time Progress** — Live page count and record count as your history is fetched
+- **Clean CSV** — 13 columns, ready for Excel, Google Sheets, or any spreadsheet app
+- **No API Key Required** — Uses the public Dogechain Blockscout Explorer API
 - **Free & Open Source** — MIT License
 
 ## How It Works
 
-### Data Sources
+Queries the [Dogechain Blockscout Explorer API](https://explorer.dogechain.dog/api) using two endpoints:
 
-| Source | Method | Speed | Notes |
-|--------|--------|-------|-------|
-| Token Transfers | `eth_getLogs` | Fast | Address-indexed, scans all blocks efficiently |
-| Native DOGE | `eth_getBlockByNumber` | Slow | Block-by-block scanning, limit range for speed |
+| Endpoint | What it fetches | API Action |
+|----------|----------------|------------|
+| Regular Transactions | Native DOGE transfers, contract calls, approvals | `account/txlist` |
+| Token Transfers | ERC-20 token sends/receives with symbol & decimals | `account/tokentx` |
 
-**Note:** The Blockscout explorer API (`explorer.dogechain.dog/api`) is currently unavailable, so this tool uses direct RPC access.
+Both are fetched with `sort=asc` (oldest first), paginated at 100 records per page, with 300ms delay between pages to avoid rate limiting. Results are merged — token transactions overwrite regular ones for the same hash (they carry richer metadata), then sorted newest-first.
 
-### RPC Endpoints (automatic failover)
-
-1. `dogechain.rpc.thirdweb.com`
-2. `rpc.dogechain.dog`
-3. `rpc.ankr.com/dogechain`
+**Typical export time:**
+- Normal wallets (<1,000 txs): ~30–60 seconds
+- Heavy wallets (100K+ txs): ~10–15 minutes
 
 ## Deploy
 
-Deploy to Vercel in one click:
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/pennybags/dogechain-exporter)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/DBOT-DC/dogechain-exporter)
 
 ### Manual Setup
 
 ```bash
-git clone https://github.com/pennybags/dogechain-exporter.git
+git clone https://github.com/DBOT-DC/dogechain-exporter.git
 cd dogechain-exporter
 npm install
 npm run dev
@@ -48,11 +48,12 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Usage
 
-1. Enter your wallet address (0x...)
-2. Select export type: ERC20 tokens, native DOGE, or both
-3. Optionally specify a token contract address
-4. Choose max blocks to scan (lower = faster for native DOGE)
-5. Click **Export to CSV**
+1. Paste your wallet address (0x...)
+2. Click **Full Export**
+3. Wait for the progress bar to complete
+4. Download the CSV
+
+That's it. No options to configure — it fetches everything.
 
 ## CSV Columns
 
@@ -61,14 +62,14 @@ Open [http://localhost:3000](http://localhost:3000).
 | Tx Hash | Transaction hash |
 | Block Number | Block containing the transaction |
 | Timestamp (UTC) | Block timestamp |
-| Type | Send / Receive / Self / Contract Creation |
+| Type | Send / Receive / Self / Contract Call |
 | From | Sender address |
 | To | Receiver address |
-| Value | Native token value |
+| Value | Native DOGE value |
 | Token Address | ERC20 token contract address |
-| Token Symbol | Token symbol (if known) |
-| Token Amount | Token transfer amount |
-| Gas Used | Gas consumed |
+| Token Symbol | Token symbol (e.g. OMNOM, USDC) |
+| Token Amount | Token transfer amount (human-readable) |
+| Gas (Limit) | Gas limit |
 | Gas Price (Gwei) | Gas price |
 | Status | Success / Failed |
 
@@ -77,15 +78,14 @@ Open [http://localhost:3000](http://localhost:3000).
 - **Next.js 15** (App Router, API Routes)
 - **TypeScript**
 - **Tailwind CSS 4**
-- **Node.js RPC** (eth_getLogs, eth_getBlockByNumber)
-- **Jest** (unit tests)
+- **Blockscout Explorer API** (Etherscan-compatible `account/txlist` + `account/tokentx`)
 
-## Limitations
+## Notes
 
-- **Native DOGE scanning is slow** — Each block must be fetched individually. Limit your block range.
-- **No token symbol resolution** — Requires an additional ERC20 `symbol()` call per token, which is skipped for performance.
-- **Blockscout API unavailable** — The explorer's API returns 400 errors. RPC-only mode is used.
-- **Rate limited** — 200ms between RPC calls to avoid throttling.
+- The Blockscout Explorer API covers the entire chain history — no block ranges needed
+- Rate limit: 300ms between API page requests
+- Max 100 records per API page (Blockscout limit)
+- The `config.ts` and `rpc.ts` files contain leftover RPC infrastructure from an earlier version. The current exporter uses only the Blockscout HTTP API
 
 ## License
 
