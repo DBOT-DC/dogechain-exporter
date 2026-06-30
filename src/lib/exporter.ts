@@ -172,10 +172,11 @@ async function fetchAllPages(
 ): Promise<BlockscoutTx[]> {
   const allTxs: BlockscoutTx[] = [];
   let page = 1;
+  const phaseName = action === 'txlist' ? 'Fetching Transactions' : 'Fetching Token Transfers';
 
   while (true) {
     onProgress?.({
-      phase: 'Fetching',
+      phase: phaseName,
       current: allTxs.length,
       message: `Fetching page ${page}...`,
       recordCount: allTxs.length,
@@ -186,6 +187,14 @@ async function fetchAllPages(
     if (txs.length === 0) break;
 
     allTxs.push(...txs);
+
+    // Send progress AFTER adding records so count is accurate
+    onProgress?.({
+      phase: phaseName,
+      current: allTxs.length,
+      message: `Fetching page ${page}...`,
+      recordCount: allTxs.length,
+    });
 
     // If we got less than a full page, we're done
     if (txs.length < PAGE_SIZE) break;
